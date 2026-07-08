@@ -13,7 +13,6 @@ COPY . .
 # Install the project and its dependencies
 # We use --system to install into the system Python environment in the container
 RUN uv pip install --system .
-RUN uv pip install "mcp<1.23.0" --system
 
 # Expose port 8080 (default for Cloud Run)
 EXPOSE 8080
