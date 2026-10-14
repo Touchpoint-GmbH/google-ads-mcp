@@ -22,7 +22,7 @@ from google.protobuf.message import Message as PbMessage
 from google.protobuf.json_format import MessageToDict
 import logging
 from google.ads.googleads.client import GoogleAdsClient
-from google.ads.googleads.v24.services.services.google_ads_service import (
+from google.ads.googleads.v25.services.services.google_ads_service import (
     GoogleAdsServiceClient,
 )
 
@@ -30,6 +30,7 @@ from google.ads.googleads.util import get_nested_attr
 import google.auth
 from ads_mcp.mcp_header_interceptor import MCPHeaderInterceptor
 import os
+import re
 import importlib.resources
 import contextlib
 import subprocess
@@ -82,51 +83,71 @@ def _create_credentials() -> google.auth.credentials.Credentials:
     return credentials
 
 
-def _get_developer_token() -> str:
-    """Returns the developer token from the environment variable GOOGLE_ADS_DEVELOPER_TOKEN."""
-    dev_token = os.environ.get("GOOGLE_ADS_DEVELOPER_TOKEN")
-    if dev_token is None:
-        raise ValueError(
-            "GOOGLE_ADS_DEVELOPER_TOKEN environment variable not set."
-        )
-    return dev_token
+def _get_developer_token() -> str | None:
+    """Returns the developer token from the environment variable GOOGLE_ADS_DEVELOPER_TOKEN, if set."""
+    return os.environ.get("GOOGLE_ADS_DEVELOPER_TOKEN")
 
 
-def _get_login_customer_id() -> str | None:
-    """Returns login customer id, if set, from the environment variable GOOGLE_ADS_LOGIN_CUSTOMER_ID."""
-    return os.environ.get("GOOGLE_ADS_LOGIN_CUSTOMER_ID")
+def clean_customer_id(customer_id: str | int) -> str:
+    """Cleans a customer ID by stripping non-digit characters."""
+    return re.sub(r"\D", "", str(customer_id))
 
 
-def _get_googleads_client() -> GoogleAdsClient:
+def _get_login_customer_id(
+    login_customer_id: str | int | None = None,
+) -> str | None:
+    """Returns login customer id, if set, from the parameter or the environment variable GOOGLE_ADS_LOGIN_CUSTOMER_ID."""
+    resolved_login_customer_id = (
+        login_customer_id
+        if login_customer_id is not None
+        else os.environ.get("GOOGLE_ADS_LOGIN_CUSTOMER_ID")
+    )
+    if resolved_login_customer_id:
+        return clean_customer_id(resolved_login_customer_id)
+    return None
+
+
+def _get_googleads_client(
+    login_customer_id: str | int | None = None,
+) -> GoogleAdsClient:
     args = {
         "credentials": _create_credentials(),
-        "developer_token": _get_developer_token(),
         "use_proto_plus": True,
     }
 
-    # If the login-customer-id is not set, avoid setting None.
-    login_customer_id = _get_login_customer_id()
+    # If the developer-token is not set, avoid setting None.
+    dev_token = _get_developer_token()
+    if dev_token:
+        args["developer_token"] = dev_token
 
-    if login_customer_id:
-        args["login_customer_id"] = login_customer_id
+    # If the login-customer-id is not set, avoid setting None.
+    resolved_login_customer_id = _get_login_customer_id(login_customer_id)
+
+    if resolved_login_customer_id:
+        args["login_customer_id"] = resolved_login_customer_id
 
     client = GoogleAdsClient(**args)
 
     return client
 
 
-def get_googleads_service(serviceName: str) -> GoogleAdsServiceClient:
-    return _get_googleads_client().get_service(
-        serviceName, interceptors=[MCPHeaderInterceptor()]
-    )
+def get_googleads_service(
+    serviceName: str,
+    login_customer_id: str | int | None = None,
+) -> GoogleAdsServiceClient:
+    return _get_googleads_client(
+        login_customer_id=login_customer_id
+    ).get_service(serviceName, interceptors=[MCPHeaderInterceptor()])
 
 
 def get_googleads_type(typeName: str):
     return _get_googleads_client().get_type(typeName)
 
 
-def get_googleads_client():
-    return _get_googleads_client()
+def get_googleads_client(
+    login_customer_id: str | int | None = None,
+):
+    return _get_googleads_client(login_customer_id=login_customer_id)
 
 
 def format_output_value(value: Any) -> Any:

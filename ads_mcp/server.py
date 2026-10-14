@@ -14,8 +14,8 @@
 
 """Entry point for the MCP server."""
 
+import os
 from ads_mcp.coordinator import mcp
-
 # The following imports are necessary to register the resources with the `mcp`
 # object, even though they are not directly used in this file.
 # Tools are loaded dynamically via reflection in coordinator.py.
@@ -27,12 +27,8 @@ from ads_mcp.resources import (
     release_notes,
     segments,
 )  # noqa: F401
-
 from ads_mcp.usage_log import UsageLogMiddleware
-
-
 import logging
-import os
 
 _LOGGERS_THAT_PRINT_ACCESS_TOKENS = ("httpx", "httpx2")
 

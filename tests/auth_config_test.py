@@ -14,6 +14,7 @@
 
 """Unit tests for authentication configuration and storage setup."""
 
+import asyncio
 import os
 import pathlib
 import shutil
@@ -33,6 +34,14 @@ except ImportError:
     HAS_REDIS = False
     RedisStore = None
 
+try:
+    from key_value.aio.stores.firestore import FirestoreStore
+
+    HAS_FIRESTORE = True
+except ImportError:
+    HAS_FIRESTORE = False
+    FirestoreStore = None
+
 from ads_mcp.auth_storage import create_client_storage
 
 
@@ -50,6 +59,8 @@ class TestAuthConfig(unittest.TestCase):
             "GOOGLE_ADS_MCP_STORAGE_TYPE",
             "GOOGLE_ADS_MCP_STORAGE_PATH",
             "GOOGLE_ADS_MCP_STORAGE_REDIS_URL",
+            "GOOGLE_ADS_MCP_STORAGE_FIRESTORE_PROJECT",
+            "GOOGLE_ADS_MCP_STORAGE_FIRESTORE_DATABASE",
             "GOOGLE_ADS_MCP_STORAGE_ENCRYPTION_KEY",
             "GOOGLE_ADS_MCP_STORAGE_DISABLE_ENCRYPTION",
             "GOOGLE_ADS_MCP_JWT_SIGNING_KEY",
@@ -100,6 +111,24 @@ class TestAuthConfig(unittest.TestCase):
         self.assertIsInstance(store, FernetEncryptionWrapper)
         self.assertIsInstance(store.key_value, FileTreeStore)
 
+    def test_create_client_storage_filetree_supports_url_keys(self):
+        """CIMD client IDs can be persisted when they are URL values."""
+        path = os.path.join(self.temp_dir, "filetree_url_keys")
+        os.environ["GOOGLE_ADS_MCP_STORAGE_TYPE"] = "filetree"
+        os.environ["GOOGLE_ADS_MCP_STORAGE_PATH"] = path
+        os.environ["GOOGLE_ADS_MCP_STORAGE_DISABLE_ENCRYPTION"] = "true"
+        store = create_client_storage()
+
+        async def round_trip_url_key():
+            key = "https://chatgpt.com/oauth/codex/test-client"
+            collection = "mcp-oauth-proxy-clients"
+            value = {"client_id": key}
+            await store.put(key, value, collection=collection)
+            self.assertEqual(await store.get(key, collection=collection), value)
+            self.assertTrue(pathlib.Path(path, collection).is_dir())
+
+        asyncio.run(round_trip_url_key())
+
     def test_create_client_storage_filetree_missing_path_raises(self):
         """Tests that filetree storage without a path raises ValueError."""
         os.environ["GOOGLE_ADS_MCP_STORAGE_TYPE"] = "filetree"
@@ -115,6 +144,41 @@ class TestAuthConfig(unittest.TestCase):
         os.environ["GOOGLE_ADS_MCP_STORAGE_DISABLE_ENCRYPTION"] = "true"
         store = create_client_storage()
         self.assertIsInstance(store, RedisStore)
+
+    @unittest.skipUnless(HAS_FIRESTORE, "firestore package not installed")
+    @patch("key_value.aio.stores.firestore.FirestoreStore")
+    def test_create_client_storage_firestore(self, mock_store):
+        """Tests creating a firestore store.
+
+        The store is patched because building a real one resolves Application
+        Default Credentials, which are not available in every test
+        environment. The sanitization strategies are asserted because dropping
+        them would leave CIMD client ids, which are URLs, as invalid Firestore
+        document ids.
+        """
+        os.environ["GOOGLE_ADS_MCP_STORAGE_TYPE"] = "firestore"
+        os.environ["GOOGLE_ADS_MCP_STORAGE_FIRESTORE_PROJECT"] = "test-project"
+        os.environ["GOOGLE_ADS_MCP_STORAGE_FIRESTORE_DATABASE"] = "test-db"
+        os.environ["GOOGLE_ADS_MCP_STORAGE_DISABLE_ENCRYPTION"] = "true"
+        store = create_client_storage()
+        _, kwargs = mock_store.call_args
+        self.assertEqual(kwargs["project"], "test-project")
+        self.assertEqual(kwargs["database"], "test-db")
+        self.assertIn("key_sanitization_strategy", kwargs)
+        self.assertIn("collection_sanitization_strategy", kwargs)
+        self.assertIs(store, mock_store.return_value)
+
+    @unittest.skipUnless(HAS_FIRESTORE, "firestore package not installed")
+    @patch("key_value.aio.stores.firestore.FirestoreStore")
+    def test_create_client_storage_firestore_env_var(self, mock_store):
+        """Tests that the firestore project alone selects firestore."""
+        os.environ["GOOGLE_ADS_MCP_STORAGE_FIRESTORE_PROJECT"] = "test-project"
+        os.environ["GOOGLE_ADS_MCP_STORAGE_DISABLE_ENCRYPTION"] = "true"
+        store = create_client_storage()
+        _, kwargs = mock_store.call_args
+        self.assertEqual(kwargs["project"], "test-project")
+        self.assertIsNone(kwargs["database"])
+        self.assertIs(store, mock_store.return_value)
 
     def test_create_client_storage_disable_encryption(self):
         """Tests disabling encryption wrapper."""

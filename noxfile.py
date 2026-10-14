@@ -39,6 +39,8 @@ TEST_DEPENDENCIES = [
     "pytest>=8.0,<9.0",
     # asyncio_mode = "auto" in pyproject.toml needs this to run async tests.
     "pytest-asyncio>=0.24,<2.0",
+    # Lets the firestore storage backend tests run instead of being skipped.
+    "py-key-value-aio[firestore] >=0.4.5, <0.5.0",
 ]
 
 
