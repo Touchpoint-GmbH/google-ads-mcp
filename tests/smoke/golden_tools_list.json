@@ -139,7 +139,8 @@
         ],
         "type": "object",
         "x-fastmcp-wrap-result": true
-      }
+      },
+      "title": "Keyword Planner Generate Keyword Historical Metrics"
     },
     {
       "_meta": {
@@ -271,7 +272,8 @@
         ],
         "type": "object",
         "x-fastmcp-wrap-result": true
-      }
+      },
+      "title": "Keyword Planner Generate Keyword Ideas"
     },
     {
       "_meta": {
@@ -330,7 +332,8 @@
         ],
         "type": "object",
         "x-fastmcp-wrap-result": true
-      }
+      },
+      "title": "Keyword Planner List Audience Insights Attributes"
     },
     {
       "_meta": {
@@ -351,7 +354,8 @@
       "outputSchema": {
         "additionalProperties": true,
         "type": "object"
-      }
+      },
+      "title": "Keyword Planner List Insights Eligible Dates"
     },
     {
       "_meta": {
@@ -384,7 +388,8 @@
         ],
         "type": "object",
         "x-fastmcp-wrap-result": true
-      }
+      },
+      "title": "Keyword Planner List Plannable Locations"
     },
     {
       "_meta": {
@@ -425,7 +430,8 @@
         ],
         "type": "object",
         "x-fastmcp-wrap-result": true
-      }
+      },
+      "title": "Keyword Planner List Plannable Products"
     },
     {
       "_meta": {

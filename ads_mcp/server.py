@@ -16,6 +16,7 @@
 
 import os
 from ads_mcp.coordinator import mcp
+
 # The following imports are necessary to register the resources with the `mcp`
 # object, even though they are not directly used in this file.
 # Tools are loaded dynamically via reflection in coordinator.py.

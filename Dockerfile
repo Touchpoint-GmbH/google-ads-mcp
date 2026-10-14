@@ -13,7 +13,6 @@ COPY . .
 # Install the project and its dependencies
 # We use --system to install into the system Python environment in the container
 RUN uv pip install --system .
-RUN uv pip install "fastmcp==3.4.2" --system
 
 RUN useradd --create-home appuser \
     && mkdir -p /data \

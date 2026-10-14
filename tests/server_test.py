@@ -40,6 +40,9 @@ class TestUtils(unittest.TestCase):
             "GOOGLE_ADS_MCP_OAUTH_CLIENT_ID": "test-client",
             "GOOGLE_ADS_MCP_OAUTH_CLIENT_SECRET": "test-secret",
             "PORT": "18080",
+            # Hosted mode requires usage logging; the pool opens lazily, so no
+            # database is contacted.
+            "MCP_USAGE_DSN": "postgresql://test",
         }
         with patch.dict(server.os.environ, env, clear=True):
             with patch.object(server.mcp, "run") as run:
